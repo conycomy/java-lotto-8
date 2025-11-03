@@ -23,6 +23,119 @@
 - 전체 게임의 흐름을 순서대로 제어 [ O ]
 
 ----  
+
+### 파일구조 
+요청하신 대로, 구현하신 로또 발매기 애플리케이션의 \*\*패키지, 클래스, 그리고 해당 클래스가 맡은 책임(역할)\*\*을 텍스트 구조로 명확하게 정리해 드립니다.
+
+-----
+
+## 📁 로또 발매기 최종 구조 및 책임
+
+```
+src/main/java
+└── config
+    └── LottoConfig.java
+        - 책임: 애플리케이션 구동에 필요한 모든 객체(View, Controller, Store 등)의 생성 및 의존성 주입(DI) 관리.
+
+└── lotto 
+    ├── Application.java
+        - 책임: 프로그램의 실행 시작점(`main` 메서드)을 제공.
+    ├── Lotto.java
+        - 책임: 로또 번호 6개 저장, 번호의 유효성 검증, **구매 로또와 당첨 로또 간의 일치 개수 계산**을 담당.
+    ├── LottoGameController.java
+        - 책임: **전체 게임 흐름(구입 -> 입력 -> 계산 -> 출력)**을 순서대로 제어. 모든 예외 발생 시 재입력 루프를 관리하여 흐름을 유지.
+    ├── LottoNumberGenerator.java
+        - 책임: **중복 없는 6개의 랜덤 로또 번호**를 생성하고 정렬하여 제공.
+    ├── LottoNumberRange.java
+        - 책임: 로또 번호 범위(1~45), 티켓 가격(1000) 등 **시스템 전체 상수**를 정의.
+    └── LottoStore.java
+        - 책임: 구입 금액을 기준으로 **로또 발행 개수를 계산**하고, `LottoNumberGenerator`를 사용하여 **로또 객체를 생성 및 저장**(`List<Lotto>`).
+
+└── payment
+    └── PurchaseAmountValidator.java
+        - 책임: 구입 금액의 **숫자 형식, 1,000원 단위, 최소 금액(1,000원) 유효성**을 검증하고 `int`로 파싱하여 반환.
+
+└── result
+    ├── LottoResultChecker.java
+        - 책임: 모든 구매 로또를 검사하여 **등수별 당첨 개수를 집계**하고, **총 상금 및 수익률**을 최종적으로 계산.
+    ├── Rank.java (Enum)
+        - 책임: **등수 규칙(일치 개수 + 보너스 여부)** 및 **상금 데이터**를 정의하고, 입력 조건에 따른 **정확한 `Rank` 객체 판별** 로직(`valueOf`)을 제공.
+    ├── WinningLotto.java
+        - 책임: 당첨 번호 6개와 보너스 번호를 저장하는 **당첨 기준 모델** 역할, **로또-보너스 중복**을 최종 검증, 구매 로또의 **최종 `Rank` 판별**을 담당.
+    └── WinningNumbersInputValidator.java
+        - 책임: 당첨 번호 문자열의 **파싱 및 유효성** 검증, 보너스 번호의 **파싱 및 유효성**을 검증하고 검증된 값을 제공.
+
+└── utils
+    ├── Delimiter.java
+        - 책임: 문자열 분리 및 파싱에 사용되는 **구분자 상수** 정의.
+    └── Validator.java (Interface)
+        - 책임: 모든 유효성 검증 클래스가 구현해야 할 `validate()` 메서드의 **규약**을 정의.
+
+└── view
+    ├── InputView.java
+        - 책임: 사용자에게 메시지를 출력하고, **콘솔로부터 입력을 받는** 책임.
+    ├── OutputView.java
+        - 책임: 발행 내역, 당첨 통계, 수익률 등 **모든 결과 데이터를 출력 형식**에 맞게 콘솔에 표시하고 **`[ERROR]` 메시지**를 출력.
+    └── constants
+        └── SystemMessage.java (Enum)
+            - 책임: 모든 사용자 **안내/요청/결과 출력 메시지** 문자열을 상수로 정의.
+```
+
+### 코드 읽기 가이드 
+
+## 🧭 로또 발매기 코드 검토 가이드
+
+코드를 이해할 때는 **흐름 제어 (Controller)** → **데이터 모델 (Domain)** → **결과 계산 (Result)** 순서로 보는 것이 가장 효율적입니다.
+
+---
+
+### 🥇 1. 흐름의 시작점 — `LottoGameController.java` (lotto)
+
+**이유:** 애플리케이션의 전체 실행 흐름을 정의하는 핵심 클래스입니다.
+
+**확인 포인트**
+- `run()` 메서드: 게임의 3단계 흐름  
+  → `processPurchaseAndIssueLottos()` → `processWinningLottoInput()` → `processResultCalculationAndOutput()`
+- `while(true)` + `try-catch` 구조를 통해 **재입력 루프와 방어적 프로그래밍**이 어떻게 적용되었는지 확인
+
+---
+
+### 🥈 2. 데이터 모델 및 규칙 — `Lotto.java`, `Rank.java` (result)
+
+**이유:** 로또의 불변 규칙과 등수 판별 로직을 정의합니다.
+
+**확인 포인트**
+- `Lotto.java`:
+    - `validateAllRules()` → 번호 개수(6), 범위(1~45), 중복 여부 검증
+    - `matchCount()` → 일치 개수 계산 책임 수행
+- `Rank.java (Enum)`:
+    - `valueOf()` → 일치 개수와 보너스 번호로 등수 판별 (특히 2등/3등 구분)
+
+---
+
+### 🥉 3. 객체 간 협력 — `WinningLotto.java`, `LottoResultChecker.java` (result)
+
+**이유:** 도메인 로직을 조합해 최종 결과를 도출하는 핵심 단계입니다.
+
+**확인 포인트**
+- `WinningLotto.java`:
+    - `getRank()` → `Lotto`의 계산 결과와 `Rank` 판별 로직을 조율
+- `LottoResultChecker.java`:
+    - `calculateResults()` → 전체 로또를 순회하며 `Map<Rank, Integer>` 집계
+    - `calculateReturnRate()` → 수익률 계산 로직 확인
+
+---
+
+### 📚 추천 읽기 순서
+
+1. `LottoGameController.java` — 전체 흐름 파악
+2. `Lotto.java`, `Rank.java` — 규칙 및 계산 로직 확인
+3. `WinningNumbersInputValidator.java` — 입력 검증 로직 확인
+4. `LottoResultChecker.java` — 결과 집계 및 통계 계산 확인
+
+---
+
+
 ###  커밋 컨벤션 
 AngularJS Commit Message 규칙을 참고했습니다. 커밋은 기능 단위로 나누어 작성합니다. (예: 기본 구분자 처리, 커스텀 구분자 추가, 음수 예외 처리 등)
 
@@ -40,8 +153,16 @@ AngularJS Commit Message 규칙을 참고했습니다. 커밋은 기능 단위�
 ---
 
 ### 예외적인 상황 
-
-
+| 구분 | 처리 대상 | 발생 조건 (예외 유형) |
+|------|-------------|-------------------------|
+| **금액 유효성** | 구입 금액 | 1,000원 미만이거나, 1,000원 단위로 나누어 떨어지지 않을 때 |
+| **형식 오류** | 구입 금액, 번호 입력 | 숫자가 아닌 문자열 입력 (`NumberFormatException`)<br>빈 값 또는 공백 입력 |
+| **포맷 오류** | 당첨 번호 | 쉼표(,)가 연속되거나 *(예: 1,,2)*, 잘못된 구분자가 사용된 경우 |
+| **개수 오류** | 당첨 번호 | 번호가 정확히 6개가 아닐 때 *(미달 또는 초과)* |
+| **범위 초과** | 로또 번호 | 1~45 범위를 벗어나는 숫자 *(0 또는 46 이상)* 입력 시 |
+| **내부 중복** | 당첨 번호 6개 | 번호 6개 내에서 같은 숫자가 중복된 경우 |
+| **외부 중복** | 보너스 번호 | 보너스 번호가 당첨 번호 6개 안에 이미 포함된 경우 |
+| **시스템 방어** | 모든 입력 | 위 모든 예외 발생 시 `Controller`가 `IllegalArgumentException`을 포착하여 `[ERROR]` 출력 후 재입력 요청 수행 |
 ---
 ### 개인적인 개발 목표
 - 값을 하드코딩하지 않는다.
