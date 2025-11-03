@@ -2,11 +2,14 @@ package lotto;
 
 import static lotto.LottoNumberRange.MAX_NUMBER;
 import static lotto.LottoNumberRange.MIN_NUMBER;
+import static lotto.LottoNumberRange.NUMBERS_PER_TICKET;
 
 import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 public class Lotto {
+
     private final List<Integer> numbers;
 
     public Lotto(List<Integer> numbers) {
@@ -14,8 +17,25 @@ public class Lotto {
         this.numbers = numbers;
     }
 
+    public List<Integer> getNumbers() {
+        return numbers;
+    }
+
+    public int matchCount(Lotto winningLotto) {
+        Set<Integer> customerNumbers = new HashSet<>(this.numbers);
+
+        List<Integer> winningNumbers = winningLotto.getNumbers();
+
+        customerNumbers.retainAll(winningNumbers);
+        return customerNumbers.size();
+    }
+
+    public boolean contains(int number) {
+        return this.numbers.contains(number);
+    }
+
     private static void validateAllRules(List<Integer> numbers) {
-        if (numbers.size() != 6) {
+        if (numbers.size() != NUMBERS_PER_TICKET) {
             throw new IllegalArgumentException("[ERROR] 로또 번호는 6개여야 합니다.");
         }
         checkDuplicate(numbers);
