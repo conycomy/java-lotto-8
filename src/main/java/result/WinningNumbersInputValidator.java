@@ -3,6 +3,7 @@ package result;
 import static lotto.LottoNumberRange.MAX_NUMBER;
 import static lotto.LottoNumberRange.MIN_NUMBER;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import utils.Delimiter;
 import utils.Validator;
@@ -12,6 +13,9 @@ public class WinningNumbersInputValidator implements Validator {
     private final String winningNumbersInput;
     private final String bonusNumberInput;
 
+    private List<Integer> winningNumbers;
+    private int bonusNumber;
+
     public WinningNumbersInputValidator(String winningNumbersInput, String bonusNumberInput) {
         this.winningNumbersInput = winningNumbersInput;
         this.bonusNumberInput = bonusNumberInput;
@@ -19,13 +23,15 @@ public class WinningNumbersInputValidator implements Validator {
 
     @Override
     public void validate() {
-        validateInputExistence(this.winningNumbersInput);
-        List<Integer> winningNumbers = parseAndValidateFormat(this.winningNumbersInput);
+        this.validateInputExistence(this.winningNumbersInput);
 
-        new lotto.Lotto(winningNumbers);
-        int bonusNumber = validateAndParseBonusNumber(this.bonusNumberInput);
+        this.winningNumbers = this.parseAndValidateFormat(this.winningNumbersInput);
 
-        validateDuplicationBetweenLottoAndBonus(winningNumbers, bonusNumber);
+        new lotto.Lotto(this.winningNumbers);
+
+        this.bonusNumber = this.validateAndParseBonusNumber(this.bonusNumberInput);
+
+        this.validateDuplicationBetweenLottoAndBonus(this.winningNumbers, this.bonusNumber);
     }
 
     private void validateInputExistence(String input) {
@@ -56,11 +62,11 @@ public class WinningNumbersInputValidator implements Validator {
 
 
     private int validateAndParseBonusNumber(String bonusNumberInput) {
-        validateInputExistence(bonusNumberInput);
+        this.validateInputExistence(bonusNumberInput); // 존재성 검증 재활용
 
         int bonusNumber;
         try {
-            bonusNumber = Integer.parseInt(bonusNumberInput.trim()); // 파싱 시도
+            bonusNumber = Integer.parseInt(bonusNumberInput.trim());
         } catch (NumberFormatException e) {
             throw new IllegalArgumentException("[ERROR] 보너스 번호는 하나의 숫자여야 합니다.");
         }
@@ -72,12 +78,17 @@ public class WinningNumbersInputValidator implements Validator {
         return bonusNumber;
     }
 
-
     private void validateDuplicationBetweenLottoAndBonus(List<Integer> winningNumbers, int bonusNumber) {
         if (winningNumbers.contains(bonusNumber)) {
             throw new IllegalArgumentException("[ERROR] 보너스 번호는 당첨 번호와 중복될 수 없습니다.");
         }
     }
+
+    public List<Integer> getWinningNumbers() {
+        return Collections.unmodifiableList(this.winningNumbers);
+    }
+
+    public int getBonusNumber() {
+        return this.bonusNumber;
+    }
 }
-
-
